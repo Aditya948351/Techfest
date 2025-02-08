@@ -10,7 +10,6 @@ app = Flask(__name__)
 TRIG_PIN = 17  # Ultrasonic Sensor Trigger
 ECHO_PIN = 27  # Ultrasonic Sensor Echo
 BUZZER_PIN = 23  # Buzzer for Gas Alert
-LED_PIN = 18  # LED Indicator
 GAS_SENSOR_PIN = 22  # Digital output from MQ-2 sensor (DO pin)
 
 # Desktop Script IP (Change this to your actual desktop IP)
@@ -26,7 +25,6 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(TRIG_PIN, GPIO.OUT)
 GPIO.setup(ECHO_PIN, GPIO.IN)
 GPIO.setup(BUZZER_PIN, GPIO.OUT)
-GPIO.setup(LED_PIN, GPIO.OUT)
 GPIO.setup(GAS_SENSOR_PIN, GPIO.IN)  # Digital input from MQ-2 sensor
 
 def measure_distance():
@@ -73,8 +71,7 @@ def send_gas_alert():
     # Send data to desktop script
     try:
         requests.post(f"http://{DESKTOP_IP}:{DESKTOP_PORT}/gas_alert", json={
-            'distance': distance,
-            'gas_detected': True
+            'distance': distance
         })
         print("🚀 Sent gas alert to desktop script!")
     except requests.RequestException as e:
@@ -97,20 +94,6 @@ def send_distance_continuously():
         except requests.RequestException as e:
             print(f"❌ Error sending distance to desktop: {e}")
         time.sleep(5)  # Send every 5 seconds
-
-@app.route('/control_led', methods=['POST'])
-def control_led():
-    """Control LED"""
-    data = request.get_json()
-    if 'state' in data:
-        if data['state'] == 'on':
-            GPIO.output(LED_PIN, GPIO.HIGH)
-            return "LED turned on", 200
-        elif data['state'] == 'off':
-            GPIO.output(LED_PIN, GPIO.LOW)
-            return "LED turned off", 200
-
-    return "Invalid request", 400
 
 if __name__ == "__main__":
     gas_thread = threading.Thread(target=monitor_gas)
