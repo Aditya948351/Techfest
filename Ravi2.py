@@ -11,9 +11,10 @@ TRIG_PIN = 17  # Ultrasonic Sensor Trigger
 ECHO_PIN = 27  # Ultrasonic Sensor Echo
 BUZZER_PIN = 23  # Buzzer for Gas Alert
 GAS_SENSOR_PIN = 22  # Digital output from MQ-2 sensor (DO pin)
+LED_PIN = 18  # LED control pin
 
 # Desktop Script IP (Change this to your actual desktop IP)
-DESKTOP_IP = "192.168.137.109"  
+DESKTOP_IP = "192.168.137.109"
 DESKTOP_PORT = 5000  # Port where your desktop script is running
 
 # GAS DETECTION DELAY
@@ -26,6 +27,7 @@ GPIO.setup(TRIG_PIN, GPIO.OUT)
 GPIO.setup(ECHO_PIN, GPIO.IN)
 GPIO.setup(BUZZER_PIN, GPIO.OUT)
 GPIO.setup(GAS_SENSOR_PIN, GPIO.IN)  # Digital input from MQ-2 sensor
+GPIO.setup(LED_PIN, GPIO.OUT)  # Setup LED pin
 
 def measure_distance():
     """Measure distance using Ultrasonic Sensor"""
@@ -94,6 +96,22 @@ def send_distance_continuously():
         except requests.RequestException as e:
             print(f"❌ Error sending distance to desktop: {e}")
         time.sleep(5)  # Send every 5 seconds
+
+@app.route('/control_led', methods=['POST'])
+def control_led():
+    """Control LED on Raspberry Pi"""
+    data = request.get_json()
+    if 'state' in data:
+        if data['state'] == 'on':
+            GPIO.output(LED_PIN, GPIO.HIGH)
+            print("💡 LED Turned ON")
+            return jsonify({"status": "LED turned on"}), 200
+        elif data['state'] == 'off':
+            GPIO.output(LED_PIN, GPIO.LOW)
+            print("💡 LED Turned OFF")
+            return jsonify({"status": "LED turned off"}), 200
+
+    return jsonify({"error": "Invalid request"}), 400
 
 if __name__ == "__main__":
     gas_thread = threading.Thread(target=monitor_gas)
