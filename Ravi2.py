@@ -9,16 +9,16 @@ app = Flask(__name__)
 # GPIO Pins
 TRIG_PIN = 17  # Ultrasonic Sensor Trigger
 ECHO_PIN = 27  # Ultrasonic Sensor Echo
-BUZZER_PIN = 23  # Buzzer for Gas Alert
-GAS_SENSOR_PIN = 22  # Digital output from MQ-2 sensor (DO pin)
+BUZZER_PIN = 23  # Buzzer for Alarm
+IR_SENSOR_PIN = 21  # IR Sensor (instead of Gas Sensor)
 LED_PIN = 18  # LED control pin
 
 # Desktop Script IP (Change this to your actual desktop IP)
 DESKTOP_IP = "192.168.137.109"
 DESKTOP_PORT = 5000  # Port where your desktop script is running
 
-# GAS DETECTION DELAY
-GAS_DETECTION_DELAY = 15  # Gas must be detected continuously for 15 seconds
+# IR SENSOR DETECTION DELAY
+IR_DETECTION_DELAY = 15  # Must detect continuously for 15 seconds
 
 # Setup GPIO
 GPIO.setwarnings(False)
@@ -26,7 +26,7 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(TRIG_PIN, GPIO.OUT)
 GPIO.setup(ECHO_PIN, GPIO.IN)
 GPIO.setup(BUZZER_PIN, GPIO.OUT)
-GPIO.setup(GAS_SENSOR_PIN, GPIO.IN)  # Digital input from MQ-2 sensor
+GPIO.setup(IR_SENSOR_PIN, GPIO.IN)  # Digital input from IR sensor
 GPIO.setup(LED_PIN, GPIO.OUT)  # Setup LED pin
 
 def measure_distance():
@@ -48,34 +48,34 @@ def measure_distance():
     distance = (elapsed_time * 34300) / 2  # Convert to cm
     return round(distance, 2)
 
-def gas_detected():
-    """Check if gas is detected (LOW = Gas detected)"""
-    return GPIO.input(GAS_SENSOR_PIN) == 0
+def ir_detected():
+    """Check if IR sensor detects an object (LOW = Detected)"""
+    return GPIO.input(IR_SENSOR_PIN) == 0
 
-def monitor_gas():
-    """Continuously check gas sensor and trigger alert only after 15 seconds"""
-    gas_start_time = None
+def monitor_ir():
+    """Continuously check IR sensor and trigger alert only after 15 seconds"""
+    ir_start_time = None
     while True:
-        if gas_detected():
-            if gas_start_time is None:  # First detection
-                gas_start_time = time.time()
-            elif time.time() - gas_start_time >= GAS_DETECTION_DELAY:
-                send_gas_alert()
-                gas_start_time = None  # Reset timer after alert
+        if ir_detected():
+            if ir_start_time is None:  # First detection
+                ir_start_time = time.time()
+            elif time.time() - ir_start_time >= IR_DETECTION_DELAY:
+                send_ir_alert()
+                ir_start_time = None  # Reset timer after alert
         else:
-            gas_start_time = None  # Reset timer if no gas detected
+            ir_start_time = None  # Reset timer if no object detected
         time.sleep(1)  # Check every second
 
-def send_gas_alert():
+def send_ir_alert():
     """Trigger buzzer and send alert to desktop"""
     distance = measure_distance()
 
     # Send data to desktop script
     try:
-        requests.post(f"http://{DESKTOP_IP}:{DESKTOP_PORT}/gas_alert", json={
+        requests.post(f"http://{DESKTOP_IP}:{DESKTOP_PORT}/ir_alert", json={
             'distance': distance
         })
-        print("🚀 Sent gas alert to desktop script!")
+        print("🚀 Sent IR detection alert to desktop script!")
     except requests.RequestException as e:
         print(f"❌ Error sending data to desktop: {e}")
 
@@ -114,9 +114,9 @@ def control_led():
     return jsonify({"error": "Invalid request"}), 400
 
 if __name__ == "__main__":
-    gas_thread = threading.Thread(target=monitor_gas)
-    gas_thread.daemon = True
-    gas_thread.start()
+    ir_thread = threading.Thread(target=monitor_ir)
+    ir_thread.daemon = True
+    ir_thread.start()
 
     distance_thread = threading.Thread(target=send_distance_continuously)
     distance_thread.daemon = True
